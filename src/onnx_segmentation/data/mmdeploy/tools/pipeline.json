@@ -1,0 +1,125 @@
+{
+    "pipeline": {
+        "input": [
+            "img"
+        ],
+        "output": [
+            "post_output"
+        ],
+        "tasks": [
+            {
+                "type": "Task",
+                "module": "Transform",
+                "name": "Preprocess",
+                "input": [
+                    "img"
+                ],
+                "output": [
+                    "prep_output"
+                ],
+                "transforms": [
+                    {
+                        "type": "LoadImageFromFile"
+                    },
+                    {
+                        "type": "Resize",
+                        "keep_ratio": true,
+                        "size": [
+                            2048,
+                            1024
+                        ]
+                    },
+                    {
+                        "type": "Normalize",
+                        "mean": [
+                            123.675,
+                            116.28,
+                            103.53
+                        ],
+                        "std": [
+                            58.395,
+                            57.12,
+                            57.375
+                        ],
+                        "to_rgb": true
+                    },
+                    {
+                        "type": "ImageToTensor",
+                        "keys": [
+                            "img"
+                        ]
+                    },
+                    {
+                        "type": "Collect",
+                        "keys": [
+                            "img"
+                        ],
+                        "meta_keys": [
+                            "img_shape",
+                            "pad_shape",
+                            "ori_shape",
+                            "img_norm_cfg",
+                            "scale_factor"
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "depthwiseseparableaspp",
+                "type": "Task",
+                "module": "Net",
+                "is_batched": true,
+                "input": [
+                    "prep_output"
+                ],
+                "output": [
+                    "infer_output"
+                ],
+                "input_map": {
+                    "img": "input"
+                },
+                "output_map": {}
+            },
+            {
+                "type": "Task",
+                "module": "mmseg",
+                "name": "postprocess",
+                "component": "ResizeMask",
+                "params": {
+                    "type": "DepthwiseSeparableASPPHead",
+                    "in_channels": 2048,
+                    "in_index": 3,
+                    "channels": 512,
+                    "dilations": [
+                        1,
+                        12,
+                        24,
+                        36
+                    ],
+                    "c1_in_channels": 256,
+                    "c1_channels": 48,
+                    "dropout_ratio": 0.1,
+                    "num_classes": 19,
+                    "norm_cfg": {
+                        "type": "SyncBN",
+                        "requires_grad": true
+                    },
+                    "align_corners": false,
+                    "loss_decode": {
+                        "type": "CrossEntropyLoss",
+                        "use_sigmoid": false,
+                        "loss_weight": 1.0
+                    },
+                    "with_argmax": true
+                },
+                "output": [
+                    "post_output"
+                ],
+                "input": [
+                    "prep_output",
+                    "infer_output"
+                ]
+            }
+        ]
+    }
+}
